@@ -2,15 +2,13 @@
 <html lang="en" class="transition duration-300">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📚 BookshelfApp – Personal Book Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-    };
+    tailwind.config = { darkMode: 'class' };
   </script>
 </head>
 
@@ -24,7 +22,7 @@
     <!-- Add Book Form -->
     <div class="mb-6 bg-white dark:bg-gray-900 p-4 rounded shadow">
       <h2 class="text-xl font-semibold mb-4">Add a New Book</h2>
-      <div class="grid md:grid-cols-4 gap-4">
+      <div class="grid md:grid-cols-5 gap-4 items-center">
         <input id="title" type="text" placeholder="Book Title" class="p-2 border rounded">
         <input id="author" type="text" placeholder="Author" class="p-2 border rounded">
         <input id="genre" type="text" placeholder="Genre" class="p-2 border rounded">
@@ -33,6 +31,13 @@
           <option value="reading">Reading</option>
           <option value="finished">Finished</option>
         </select>
+        <div class="flex items-center gap-1" id="ratingStars">
+          <span class="star text-2xl cursor-pointer" data-value="1">☆</span>
+          <span class="star text-2xl cursor-pointer" data-value="2">☆</span>
+          <span class="star text-2xl cursor-pointer" data-value="3">☆</span>
+          <span class="star text-2xl cursor-pointer" data-value="4">☆</span>
+          <span class="star text-2xl cursor-pointer" data-value="5">☆</span>
+        </div>
       </div>
       <button onclick="addBook()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Book</button>
     </div>
@@ -70,6 +75,7 @@
   <script>
     let books = JSON.parse(localStorage.getItem("bookshelf") || "[]");
     let editIndex = -1;
+    let selectedRating = 0;
 
     if (localStorage.getItem("theme") === "dark") {
       document.documentElement.classList.add("dark");
@@ -81,19 +87,37 @@
       localStorage.setItem("theme", isDark ? "dark" : "light");
     }
 
+    // Handle clickable stars
+    document.querySelectorAll("#ratingStars .star").forEach(star => {
+      star.addEventListener("click", function () {
+        selectedRating = parseInt(this.getAttribute("data-value"));
+        highlightStars(selectedRating);
+      });
+    });
+
+    function highlightStars(rating) {
+      document.querySelectorAll("#ratingStars .star").forEach(star => {
+        const val = parseInt(star.getAttribute("data-value"));
+        star.textContent = val <= rating ? "⭐" : "☆";
+      });
+    }
+
     function addBook() {
       const title = document.getElementById("title").value.trim();
       const author = document.getElementById("author").value.trim();
       const genre = document.getElementById("genre").value.trim();
       const status = document.getElementById("status").value;
+      const rating = selectedRating;
 
       if (!title || !author || !genre) return alert("Please fill in all fields.");
 
+      const bookData = { title, author, genre, status, rating };
+
       if (editIndex >= 0) {
-        books[editIndex] = { title, author, genre, status };
+        books[editIndex] = bookData;
         editIndex = -1;
       } else {
-        books.push({ title, author, genre, status });
+        books.push(bookData);
       }
 
       localStorage.setItem("bookshelf", JSON.stringify(books));
@@ -101,7 +125,13 @@
       document.getElementById("author").value = "";
       document.getElementById("genre").value = "";
       document.getElementById("status").value = "unread";
+      selectedRating = 0;
+      highlightStars(0);
       renderBooks();
+    }
+
+    function renderStars(rating) {
+      return "⭐".repeat(rating) + "☆".repeat(5 - rating);
     }
 
     function renderBooks() {
@@ -129,7 +159,8 @@
         info.innerHTML = `<h3 class='text-lg font-bold'>${book.title}</h3>
                           <p class='text-sm'>Author: ${book.author}</p>
                           <p class='text-sm'>Genre: ${book.genre}</p>
-                          <p class='text-sm'>Status: <span class='font-semibold text-blue-700 dark:text-blue-300'>${book.status}</span></p>`;
+                          <p class='text-sm'>Status: <span class='font-semibold text-blue-700 dark:text-blue-300'>${book.status}</span></p>
+                          <p class='text-sm'>Rating: <span class='text-yellow-500 text-lg'>${renderStars(book.rating || 0)}</span></p>`;
 
         const actions = document.createElement("div");
         actions.className = "flex gap-3 mt-3 md:mt-0";
@@ -158,6 +189,8 @@
       document.getElementById("author").value = book.author;
       document.getElementById("genre").value = book.genre;
       document.getElementById("status").value = book.status;
+      selectedRating = book.rating || 0;
+      highlightStars(selectedRating);
       editIndex = index;
     }
 
@@ -196,7 +229,7 @@
       books.slice(0, 30).forEach((b, i) => {
         const y = 20 + i * 10;
         if (y >= 280) return;
-        doc.text(`${i + 1}. ${b.title} by ${b.author} (${b.genre}) - ${b.status}`, 10, y);
+        doc.text(`${i + 1}. ${b.title} by ${b.author} (${b.genre}) - ${b.status}, Rating: ${b.rating || "N/A"}/5`, 10, y);
       });
 
       doc.save("bookshelf.pdf");
